@@ -1,33 +1,21 @@
 package com.matmul;
 
-import com.matmul.multiplier.Multiplier;
-import com.matmul.multiplier.NaiveConcurrentMultiplier;
-import com.matmul.multiplier.NaiveMultiplier;
-import com.matmul.multiplier.StrassensConcurrentMultiplier;
-import com.matmul.multiplier.StrassensMultiplier;
+import com.matmul.utils.CommonConstants;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.Random;
 
 public class App {
 
     private static final int[] SIZES = {256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560};
-    private static final String[] NAMES = {"Naive", "NaiveConcurrent", "Strassen", "StrassenConcurrent"};
-    private static final Multiplier[] MULTIPLIERS = {
-        new NaiveMultiplier(),
-        new NaiveConcurrentMultiplier(),
-        new StrassensMultiplier(),
-        new StrassensConcurrentMultiplier()
-    };
+    private static final CommonConstants[] MULTIPLIERS = CommonConstants.values();
 
     public static void main(String[] args) throws IOException {
         System.out.println("Processors: " + Runtime.getRuntime().availableProcessors() + "\n");
 
         long[][] times = new long[SIZES.length][MULTIPLIERS.length];
-        boolean[][] correct = new boolean[SIZES.length][MULTIPLIERS.length];
 
         for (int s = 0; s < SIZES.length; s++) {
             int n = SIZES[s];
@@ -36,23 +24,16 @@ public class App {
 
             System.out.printf("--- %dx%d ---%n", n, n);
 
-            int[][] reference = null;
             for (int m = 0; m < MULTIPLIERS.length; m++) {
                 long start = System.currentTimeMillis();
-                int[][] result = MULTIPLIERS[m].multiply(a, b);
+                MULTIPLIERS[m].multiplier.multiply(a, b);
                 times[s][m] = System.currentTimeMillis() - start;
 
-                if (m == 0) {
-                    reference = result;
-                    correct[s][m] = true;
-                } else {
-                    correct[s][m] = Arrays.deepEquals(result, reference);
-                }
-                System.out.printf("  %-20s %6dms  correct=%b%n", NAMES[m], times[s][m], correct[s][m]);
+                System.out.printf("  %-20s %6dms%n", MULTIPLIERS[m].label, times[s][m]);
             }
         }
 
-        writeReport(times, correct);
+        writeReport(times);
         System.out.println("\nReport written to report.txt");
     }
 
@@ -65,7 +46,7 @@ public class App {
         return m;
     }
 
-    private static void writeReport(long[][] times, boolean[][] correct) throws IOException {
+    private static void writeReport(long[][] times) throws IOException {
         int colWidth = 22;
         String separator = "-".repeat(1 + (1 + colWidth) * (1 + MULTIPLIERS.length));
 
@@ -76,16 +57,14 @@ public class App {
             pw.println(separator);
 
             pw.printf("| %-" + colWidth + "s", "Size");
-            for (String name : NAMES) pw.printf("| %-" + colWidth + "s", name);
+            for (CommonConstants c : MULTIPLIERS) pw.printf("| %-" + colWidth + "s", c.label);
             pw.println("|");
             pw.println(separator);
 
             for (int s = 0; s < SIZES.length; s++) {
                 pw.printf("| %-" + colWidth + "s", SIZES[s] + "x" + SIZES[s]);
-                for (int m = 0; m < MULTIPLIERS.length; m++) {
-                    String cell = times[s][m] + "ms" + (correct[s][m] ? "" : " [WRONG]");
-                    pw.printf("| %-" + colWidth + "s", cell);
-                }
+                for (int m = 0; m < MULTIPLIERS.length; m++)
+                    pw.printf("| %-" + colWidth + "s", times[s][m] + "ms");
                 pw.println("|");
             }
 
@@ -95,7 +74,7 @@ public class App {
             pw.println("Speedup vs Naive:");
             pw.println(separator);
             pw.printf("| %-" + colWidth + "s", "Size");
-            for (String name : NAMES) pw.printf("| %-" + colWidth + "s", name);
+            for (CommonConstants c : MULTIPLIERS) pw.printf("| %-" + colWidth + "s", c.label);
             pw.println("|");
             pw.println(separator);
 
