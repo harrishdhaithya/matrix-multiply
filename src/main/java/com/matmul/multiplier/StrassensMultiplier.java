@@ -33,11 +33,11 @@ public class StrassensMultiplier implements Multiplier {
 
         int[][] M1 = multiply(CommonUtils.matAdd(A11, A22), CommonUtils.matAdd(B11, B22));
         int[][] M2 = multiply(CommonUtils.matAdd(A21, A22), B11);
-        int[][] M3 = multiply(A11,                          CommonUtils.matSub(B12, B22));
-        int[][] M4 = multiply(A22,                          CommonUtils.matSub(B21, B11));
-        int[][] M5 = multiply(CommonUtils.matAdd(A11, A12), B22);
-        int[][] M6 = multiply(CommonUtils.matSub(A21, A11), CommonUtils.matAdd(B11, B12));
-        int[][] M7 = multiply(CommonUtils.matSub(A12, A22), CommonUtils.matAdd(B21, B22));
+        int[][] M3 = multiply(A11,CommonUtils.matSub(B12, B22));
+        int[][] M4 = multiply(A22,CommonUtils.matSub(B21, B11));
+        int[][] M5 = multiply(CommonUtils.matAdd(A11, A12),B22);
+        int[][] M6 = multiply(CommonUtils.matSub(A21, A11),CommonUtils.matAdd(B11, B12));
+        int[][] M7 = multiply(CommonUtils.matSub(A12, A22),CommonUtils.matAdd(B21, B22));
 
         int[][] t1  = CommonUtils.matAdd(M1, M4);
         int[][] t2  = CommonUtils.matSub(t1, M5);
