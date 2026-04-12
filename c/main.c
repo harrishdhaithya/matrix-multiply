@@ -36,7 +36,7 @@ static void write_report(long long times[NUM_SIZES][NUM_MULS],
     if (!f) {
      perror("Cant open report.txt");
      return;
-  11}
+    }
 
     fprintf(f, "Matrix Multiplication Performance Report C(OpenMP)\n");
     fprintf(f, "OpenMP threads: %d\n\n", omp_get_max_threads());
