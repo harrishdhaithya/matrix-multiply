@@ -55,7 +55,13 @@ public class StrassensConcurrentMultiplier implements Multiplier {
             StrassenTask t6 = new StrassenTask(CommonUtils.matSub(A21, A11), CommonUtils.matAdd(B11, B12));
             StrassenTask t7 = new StrassenTask(CommonUtils.matSub(A12, A22), CommonUtils.matAdd(B21, B22));
 
-            t1.fork(); t2.fork(); t3.fork(); t4.fork(); t5.fork(); t6.fork();
+            t1.fork();
+            t2.fork();
+            t3.fork();
+            t4.fork();
+            t5.fork();
+            t6.fork();
+
             int[][] M7 = t7.compute();
             int[][] M6 = t6.join();
             int[][] M5 = t5.join();
