@@ -13,7 +13,7 @@ static const char* NAMES[NUM_MULS]  = {
     "Naive", "NaiveOMP", "Strassen", "StrassenOMP"
 };
 
-typedef int* (*mul_fn)(const int*, const int*, int);
+typedef int** (*mul_fn)(int**, int**, int);
 static const mul_fn MULS[NUM_MULS] = {
     naive_multiply, naive_omp_multiply,
     strassen_multiply, strassen_omp_multiply
@@ -99,18 +99,18 @@ int main(void) {
 
     for (int s = 0; s < NUM_SIZES; s++) {
         int n = SIZES[s];
-        int* A = mat_alloc(n);
-        int* B = mat_alloc(n);
+        int** A = mat_alloc(n);
+        int** B = mat_alloc(n);
         mat_random(A, n, 42);
         mat_random(B, n, 137);
 
         printf("--- %dx%d ---\n", n, n);
 
-        int* reference = NULL;
+        int** reference = NULL;
         for (int m = 0; m < NUM_MULS; m++) {
             struct timespec t0, t1;
             clock_gettime(CLOCK_MONOTONIC, &t0);
-            int* result = MULS[m](A, B, n);
+            int** result = MULS[m](A, B, n);
             clock_gettime(CLOCK_MONOTONIC, &t1);
             times[s][m] = ms_diff(t0, t1);
 
@@ -119,15 +119,15 @@ int main(void) {
                 correct[s][m] = 1;
             } else {
                 correct[s][m] = mat_equals(result, reference, n);
-                free(result);
+                mat_free(result);
             }
             printf("  %-13s %7lldms  correct=%s\n",
                    NAMES[m], times[s][m], correct[s][m] ? "true" : "false");
         }
 
-        free(reference);
-        free(A);
-        free(B);
+        mat_free(reference);
+        mat_free(A);
+        mat_free(B);
     }
 
     write_report(times, correct);
