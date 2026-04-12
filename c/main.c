@@ -5,13 +5,13 @@
 #include <time.h>
 #include <omp.h>
 
-#define NUM_SIZES 10
-#define NUM_MULS   4
+#define NUM_SIZES   10
+#define NUM_MULS     4
+#define NUM_THREADS  4
 
-static const int SIZES[NUM_SIZES] = {256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560};
-static const char* NAMES[NUM_MULS] = {
-    "Naive", "NaiveOMP", "Strassen", "StrassenOMP"
-};
+static const int SIZES[NUM_SIZES]     = {256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560};
+static const int THREADS[NUM_THREADS] = {2, 4, 8,10};
+static const char* NAMES[NUM_MULS]   = {"Naive", "NaiveOMP", "Strassen", "StrassenOMP"};
 
 typedef int** (*mul_fn)(int**, int**, int);
 static const mul_fn MULS[NUM_MULS] = {
@@ -24,7 +24,7 @@ static long long ms_diff(struct timespec a, struct timespec b) {
          + (b.tv_nsec - a.tv_nsec) / 1000000LL;
 }
 
-static void write_report(long long times[NUM_SIZES][NUM_MULS]) {
+static void write_report(long long times[NUM_THREADS][NUM_SIZES][NUM_MULS]) {
     const int col_w   = 20;
     const int sep_len = 1 + (col_w + 1) * (NUM_MULS + 1);
     char sep[256];
@@ -38,83 +38,91 @@ static void write_report(long long times[NUM_SIZES][NUM_MULS]) {
     }
 
     fprintf(f, "Matrix Multiplication Performance Report C(OpenMP)\n");
-    fprintf(f, "OpenMP threads: %d\n\n", omp_get_max_threads());
+    fprintf(f, "Max threads available: %d\n", omp_get_max_threads());
 
-    fprintf(f, "%s\n", sep);
-    fprintf(f, "| %-*s", col_w, "Size");
-    for (int m = 0; m < NUM_MULS; m++)
-        fprintf(f, "| %-*s", col_w, NAMES[m]);
-    fprintf(f, "|\n%s\n", sep);
+    for (int t = 0; t < NUM_THREADS; t++) {
+        fprintf(f, "\nThreads: %d\n", THREADS[t]);
+        fprintf(f, "%s\n", sep);
+        fprintf(f, "| %-*s", col_w, "Size");
+        for (int m = 0; m < NUM_MULS; m++) fprintf(f, "| %-*s", col_w, NAMES[m]);
+        fprintf(f, "|\n%s\n", sep);
 
-    for (int s = 0; s < NUM_SIZES; s++) {
-        char label[32];
-        snprintf(label, sizeof(label), "%dx%d", SIZES[s], SIZES[s]);
-        fprintf(f, "| %-*s", col_w, label);
-        for (int m = 0; m < NUM_MULS; m++) {
-            char cell[32];
-            snprintf(cell, sizeof(cell), "%lldms", times[s][m]);
-            fprintf(f, "| %-*s", col_w, cell);
+        for (int s = 0; s < NUM_SIZES; s++) {
+            char label[32];
+            snprintf(label, sizeof(label), "%dx%d", SIZES[s], SIZES[s]);
+            fprintf(f, "| %-*s", col_w, label);
+            for (int m = 0; m < NUM_MULS; m++) {
+                char cell[32];
+                snprintf(cell, sizeof(cell), "%lldms", times[t][s][m]);
+                fprintf(f, "| %-*s", col_w, cell);
+            }
+            fprintf(f, "|\n");
         }
-        fprintf(f, "|\n");
-    }
-    fprintf(f, "%s\n\n", sep);
+        fprintf(f, "%s\n", sep);
 
-    fprintf(f, "Speedup vs Naive:\n%s\n", sep);
-    fprintf(f, "| %-*s", col_w, "Size");
-    for (int m = 0; m < NUM_MULS; m++) fprintf(f, "| %-*s", col_w, NAMES[m]);
-    fprintf(f, "|\n%s\n", sep);
+        fprintf(f, "\nSpeedup vs Naive (Threads: %d):\n%s\n", THREADS[t], sep);
+        fprintf(f, "| %-*s", col_w, "Size");
+        for (int m = 0; m < NUM_MULS; m++) fprintf(f, "| %-*s", col_w, NAMES[m]);
+        fprintf(f, "|\n%s\n", sep);
 
-    for (int s = 0; s < NUM_SIZES; s++) {
-        char label[32];
-        snprintf(label, sizeof(label), "%dx%d", SIZES[s], SIZES[s]);
-        fprintf(f, "| %-*s", col_w, label);
-        for (int m = 0; m < NUM_MULS; m++) {
-            char cell[32];
-            if (m == 0)
-                snprintf(cell, sizeof(cell), "1.00x (baseline)");
-            else if (times[s][0] == 0)
-                snprintf(cell, sizeof(cell), "N/A");
-            else
-                snprintf(cell, sizeof(cell), "%.2fx", (double)times[s][0] / (double)times[s][m]);
-            fprintf(f, "| %-*s", col_w, cell);
+        for (int s = 0; s < NUM_SIZES; s++) {
+            char label[32];
+            snprintf(label, sizeof(label), "%dx%d", SIZES[s], SIZES[s]);
+            fprintf(f, "| %-*s", col_w, label);
+            for (int m = 0; m < NUM_MULS; m++) {
+                char cell[32];
+                if (m == 0)
+                    snprintf(cell, sizeof(cell), "1.00x (baseline)");
+                else if (times[t][s][0] == 0)
+                    snprintf(cell, sizeof(cell), "N/A");
+                else
+                    snprintf(cell, sizeof(cell), "%.2fx", (double)times[t][s][0] / (double)times[t][s][m]);
+                fprintf(f, "| %-*s", col_w, cell);
+            }
+            fprintf(f, "|\n");
         }
-        fprintf(f, "|\n");
+        fprintf(f, "%s\n", sep);
     }
-    fprintf(f, "%s\n", sep);
 
     fclose(f);
 }
 
 int main(void) {
-    printf("OpenMP threads: %d\n\n", omp_get_max_threads());
+    printf("Max threads available: %d\n\n", omp_get_max_threads());
 
-    long long times[NUM_SIZES][NUM_MULS];
+    long long times[NUM_THREADS][NUM_SIZES][NUM_MULS];
 
-    for (int s = 0; s < NUM_SIZES; s++) {
-        int n = SIZES[s];
-        int** A = mat_alloc(n);
-        int** B = mat_alloc(n);
-        mat_random(A, n, 42);
-        mat_random(B, n, 137);
+    for (int t = 0; t < NUM_THREADS; t++) {
+        omp_set_num_threads(THREADS[t]);
+        printf("=== Threads: %d ===\n", THREADS[t]);
 
-        printf("--- %dx%d ---\n", n, n);
+        for (int s = 0; s < NUM_SIZES; s++) {
+            int n = SIZES[s];
+            int** A = mat_alloc(n);
+            int** B = mat_alloc(n);
+            mat_random(A, n, 42);
+            mat_random(B, n, 137);
 
-        for (int m = 0; m < NUM_MULS; m++) {
-            struct timespec t0, t1;
-            clock_gettime(CLOCK_MONOTONIC, &t0);
-            int** result = MULS[m](A, B, n);
-            clock_gettime(CLOCK_MONOTONIC, &t1);
-            times[s][m] = ms_diff(t0, t1);
-            mat_free(result);
+            printf("--- %dx%d ---\n", n, n);
 
-            printf("  %-13s %7lldms\n", NAMES[m], times[s][m]);
+            for (int m = 0; m < NUM_MULS; m++) {
+                struct timespec t0, t1;
+                clock_gettime(CLOCK_MONOTONIC, &t0);
+                int** result = MULS[m](A, B, n);
+                clock_gettime(CLOCK_MONOTONIC, &t1);
+                times[t][s][m] = ms_diff(t0, t1);
+                mat_free(result);
+
+                printf("  %-13s %7lldms\n", NAMES[m], times[t][s][m]);
+            }
+
+            mat_free(A);
+            mat_free(B);
         }
-
-        mat_free(A);
-        mat_free(B);
+        printf("\n");
     }
 
     write_report(times);
-    printf("\nReport written to report.txt\n");
+    printf("Report written to report.txt\n");
     return 0;
 }
