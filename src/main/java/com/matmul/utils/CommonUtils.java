@@ -35,9 +35,9 @@ public class CommonUtils {
         int[][] C = new int[n][n];
         for (int i = 0; i < half; i++)
             for (int j = 0; j < half; j++) {
-                C[i][j]               = C11[i][j];
-                C[i][j + half]        = C12[i][j];
-                C[i + half][j]        = C21[i][j];
+                C[i][j]= C11[i][j];
+                C[i][j + half]= C12[i][j];
+                C[i + half][j]= C21[i][j];
                 C[i + half][j + half] = C22[i][j];
             }
         return C;

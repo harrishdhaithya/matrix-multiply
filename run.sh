@@ -2,14 +2,13 @@
 set -e
 
 echo "=== Java ==="
-mkdir -p out
-find src/main/java -name "*.java" | xargs javac -d out
+javac -cp out -d out src/main/java/com/matmul/App.java src/main/java/com/matmul/utils/* src/main/java/com/matmul/multiplier/*
 java -cp out com.matmul.App
-echo "Report: report.txt"
+echo "Report: report.csv"
 
 echo ""
 echo "=== C ==="
-cd c
-gcc -O2 -fopenmp -o matmul main.c utils.c naive.c naive_omp.c strassen.c strassen_omp.c -lm
+cd c_src
+gcc-15 -O3 -march=native -fopenmp -o matmul main.c utils.c naive.c naive_omp.c strassen.c strassen_omp.c
 ./matmul
-echo "Report: c/report.txt"
+echo "Report: c_src/report.csv"

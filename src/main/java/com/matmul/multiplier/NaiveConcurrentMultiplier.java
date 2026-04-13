@@ -8,14 +8,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class NaiveConcurrentMultiplier implements Multiplier {
+
     @Override
     public int[][] multiply(int[][] a, int[][] b) {
-        int[][] result = new int[a.length][b[0].length];
-        int threads = Runtime.getRuntime().availableProcessors();
+        return multiply(a, b, Runtime.getRuntime().availableProcessors());
+    }
+
+    @Override
+    public int[][] multiply(int[][] a, int[][] b, int threads) {
+        int n = a.length;
+        int[][] result = new int[n][b[0].length];
         ExecutorService executor = Executors.newFixedThreadPool(threads);
         List<Future<int[]>> futures = new ArrayList<>();
 
-        for (int i = 0; i < a.length; i++) {
+        for (int i = 0; i < n; i++) {
             final int row = i;
             futures.add(executor.submit(() -> {
                 int[] rowResult = new int[b[0].length];

@@ -9,32 +9,40 @@ import java.util.Random;
 
 public class App {
 
-    private static final int[] SIZES = {256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560};
+    private static final int[] SIZES   = {256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560};
+    private static final int[] THREADS = {2, 4, 8, 10};
     private static final CommonConstants[] MULTIPLIERS = CommonConstants.values();
 
     public static void main(String[] args) throws IOException {
         System.out.println("Processors: " + Runtime.getRuntime().availableProcessors() + "\n");
 
-        long[][] times = new long[SIZES.length][MULTIPLIERS.length];
+        // times[threadIdx][sizeIdx][mulIdx]
+        long[][][] times = new long[THREADS.length][SIZES.length][MULTIPLIERS.length];
 
-        for (int s = 0; s < SIZES.length; s++) {
-            int n = SIZES[s];
-            int[][] a = randomMatrix(n, 42);
-            int[][] b = randomMatrix(n, 137);
+        for (int t = 0; t < THREADS.length; t++) {
+            int threads = THREADS[t];
+            System.out.println("=== Threads: " + threads + " ===");
 
-            System.out.printf("--- %dx%d ---%n", n, n);
+            for (int s = 0; s < SIZES.length; s++) {
+                int n = SIZES[s];
+                int[][] a = randomMatrix(n, 42);
+                int[][] b = randomMatrix(n, 137);
 
-            for (int m = 0; m < MULTIPLIERS.length; m++) {
-                long start = System.currentTimeMillis();
-                MULTIPLIERS[m].multiplier.multiply(a, b);
-                times[s][m] = System.currentTimeMillis() - start;
+                System.out.printf("--- %dx%d ---%n", n, n);
 
-                System.out.printf("  %-20s %6dms%n", MULTIPLIERS[m].label, times[s][m]);
+                for (int m = 0; m < MULTIPLIERS.length; m++) {
+                    long start = System.currentTimeMillis();
+                    MULTIPLIERS[m].multiplier.multiply(a, b, threads);
+                    times[t][s][m] = System.currentTimeMillis() - start;
+
+                    System.out.printf("  %-20s %6dms%n", MULTIPLIERS[m].label, times[t][s][m]);
+                }
             }
+            System.out.println();
         }
 
         writeReport(times);
-        System.out.println("\nReport written to report.txt");
+        System.out.println("Report written to report.csv");
     }
 
     private static int[][] randomMatrix(int n, long seed) {
@@ -46,50 +54,33 @@ public class App {
         return m;
     }
 
-    private static void writeReport(long[][] times) throws IOException {
-        int colWidth = 22;
-        String separator = "-".repeat(1 + (1 + colWidth) * (1 + MULTIPLIERS.length));
+    private static void writeReport(long[][][] times) throws IOException {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("report.csv"))) {
+            // header
+            StringBuilder header = new StringBuilder("Threads,Size");
+            for (CommonConstants c : MULTIPLIERS) header.append(",").append(c.label).append("(ms)");
+            for (int m = 0; m < MULTIPLIERS.length; m++)
+                if (MULTIPLIERS[m].isConcurrent)
+                    header.append(",").append(MULTIPLIERS[m].label).append(" Speedup");
+            pw.println(header);
 
-        try (PrintWriter pw = new PrintWriter(new FileWriter("report.txt"))) {
-            pw.println("Matrix Multiplication Performance Report");
-            pw.println("Environment: " + Runtime.getRuntime().availableProcessors() + " available processors");
-            pw.println();
-            pw.println(separator);
-
-            pw.printf("| %-" + colWidth + "s", "Size");
-            for (CommonConstants c : MULTIPLIERS) pw.printf("| %-" + colWidth + "s", c.label);
-            pw.println("|");
-            pw.println(separator);
-
-            for (int s = 0; s < SIZES.length; s++) {
-                pw.printf("| %-" + colWidth + "s", SIZES[s] + "x" + SIZES[s]);
-                for (int m = 0; m < MULTIPLIERS.length; m++)
-                    pw.printf("| %-" + colWidth + "s", times[s][m] + "ms");
-                pw.println("|");
-            }
-
-            pw.println(separator);
-            pw.println();
-
-            pw.println("Speedup vs Naive:");
-            pw.println(separator);
-            pw.printf("| %-" + colWidth + "s", "Size");
-            for (CommonConstants c : MULTIPLIERS) pw.printf("| %-" + colWidth + "s", c.label);
-            pw.println("|");
-            pw.println(separator);
-
-            for (int s = 0; s < SIZES.length; s++) {
-                pw.printf("| %-" + colWidth + "s", SIZES[s] + "x" + SIZES[s]);
-                for (int m = 0; m < MULTIPLIERS.length; m++) {
-                    String cell = m == 0 ? "1.00x (baseline)"
-                        : times[s][0] == 0 ? "N/A"
-                        : String.format("%.2fx", (double) times[s][0] / times[s][m]);
-                    pw.printf("| %-" + colWidth + "s", cell);
+            // rows
+            for (int t = 0; t < THREADS.length; t++) {
+                for (int s = 0; s < SIZES.length; s++) {
+                    StringBuilder row = new StringBuilder();
+                    row.append(THREADS[t]).append(",").append(SIZES[s]).append("x").append(SIZES[s]);
+                    for (int m = 0; m < MULTIPLIERS.length; m++)
+                        row.append(",").append(times[t][s][m]);
+                    for (int m = 0; m < MULTIPLIERS.length; m++) {
+                        if (!MULTIPLIERS[m].isConcurrent) continue;
+                        long baseline = times[t][s][m - 1]; // assumed as in order
+                        String speedup = baseline == 0 ? "N/A"
+                            : String.format("%.2f", (double) baseline / times[t][s][m]);
+                        row.append(",").append(speedup);
+                    }
+                    pw.println(row);
                 }
-                pw.println("|");
             }
-
-            pw.println(separator);
         }
     }
 }
